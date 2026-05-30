@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Durham Hidden Waterways</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, sans-serif; background: #0a0a0f; color: #e0e0e0; }
+    #map { position: absolute; inset: 0; }
+
+    #controls {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(10, 10, 20, 0.85);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 16px 20px;
+      backdrop-filter: blur(8px);
+      z-index: 10;
+      min-width: 220px;
+    }
+
+    #controls h2 {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #aaa;
+      margin-bottom: 14px;
+    }
+
+    .layer-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .layer-toggle input[type="checkbox"] { display: none; }
+
+    .swatch {
+      width: 28px;
+      height: 6px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .toggle-pill {
+      width: 34px;
+      height: 18px;
+      border-radius: 9px;
+      background: #333;
+      position: relative;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+
+    .toggle-pill::after {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #888;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.2s, background 0.2s;
+    }
+
+    input:checked + .toggle-pill { background: #2a4a6a; }
+    input:checked + .toggle-pill::after { transform: translateX(16px); background: #fff; }
+
+    .layer-label { font-size: 13px; }
+    .layer-sublabel { font-size: 11px; color: #666; margin-top: 1px; }
+
+    #status {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      font-size: 11px;
+      color: #555;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <div id="controls">
+    <h2>Durham Waterways</h2>
+
+    <label class="layer-toggle">
+      <input type="checkbox" id="toggle-streams" checked />
+      <div class="toggle-pill"></div>
+      <div>
+        <div class="layer-label" style="color:#4fc3f7">Open Channels</div>
+        <div class="layer-sublabel">Above-ground streams</div>
+      </div>
+    </label>
+
+    <label class="layer-toggle">
+      <input type="checkbox" id="toggle-culverts" checked />
+      <div class="toggle-pill"></div>
+      <div>
+        <div class="layer-label" style="color:#ffb300">Underground Pipes</div>
+        <div class="layer-sublabel">Width + color = creek confidence</div>
+      </div>
+    </label>
+
+    <div style="margin: 2px 0 10px 44px; font-size: 10px; color: #555; line-height: 1.8">
+      <span style="color:#fff176">━━</span> Ellerbe ≥60" (creek trunk)<br/>
+      <span style="color:#ff7043">━━</span> Ellerbe 36–59" (likely creek)<br/>
+      <span style="color:#444">╌╌</span> Other watershed
+    </div>
+
+    <label class="layer-toggle">
+      <input type="checkbox" id="toggle-downtown" checked />
+      <div class="toggle-pill"></div>
+      <div>
+        <div class="layer-label" style="color:#e0e0e0">Downtown Only</div>
+        <div class="layer-sublabel">Hexagon boundary</div>
+      </div>
+    </label>
+
+    <label class="layer-toggle">
+      <input type="checkbox" id="toggle-river" />
+      <div class="toggle-pill"></div>
+      <div>
+        <div class="layer-label" style="color:#29b6f6">River Mode</div>
+        <div class="layer-sublabel">Animated flowing water</div>
+      </div>
+    </label>
+
+    <label class="layer-toggle">
+      <input type="checkbox" id="toggle-delta" />
+      <div class="toggle-pill"></div>
+      <div>
+        <div class="layer-label" style="color:#34d399">Imagined Delta</div>
+        <div class="layer-sublabel">80%+ confidence hypothesis network</div>
+      </div>
+    </label>
+    <div style="margin:-6px 0 10px 44px; font-size:10px; color:#555; line-height:1.7">
+      <span style="color:#34d399">━━</span> S. Ellerbe main (95%)<br/>
+      <span style="color:#6ee7b7">━━</span> Documented branches (80–87%)<br/>
+      <span style="color:#a7f3d0">╌╌</span> Gap closures (80%)
+    </div>
+
+    <label class="layer-toggle">
+      <input type="checkbox" id="toggle-neighborhoods" checked />
+      <div class="toggle-pill"></div>
+      <div>
+        <div class="layer-label" style="color:#6a8f6a">Neighborhoods</div>
+        <div class="layer-sublabel">OSM boundary outlines</div>
+      </div>
+    </label>
+
+    <label class="layer-toggle">
+      <input type="checkbox" id="toggle-buildings" checked />
+      <div class="toggle-pill"></div>
+      <div>
+        <div class="layer-label" style="color:#90a4ae">3D Buildings</div>
+        <div class="layer-sublabel">OpenStreetMap footprints</div>
+      </div>
+    </label>
+  </div>
+
+  <div id="status">Loading data…</div>
+
+  <!-- 3D view overlay (iframe so Three.js has its own GL context) -->
+  <div id="threed-overlay" style="display:none;position:absolute;inset:0;z-index:20">
+    <iframe id="threed-frame" src="" style="width:100%;height:100%;border:none"
+            allow="accelerometer"></iframe>
+  </div>
+
+  <button id="threed-btn" style="
+    position:absolute;bottom:60px;right:16px;z-index:21;
+    background:rgba(10,15,25,0.9);border:1px solid #2a3f5f;
+    color:#aaa;padding:8px 14px;border-radius:8px;
+    font-size:12px;cursor:pointer;letter-spacing:0.05em;
+    backdrop-filter:blur(4px);
+  ">✦ 3D View</button>
+
+  <script>
+    // Toggle 3D overlay; load iframe lazily on first open
+    const overlay  = document.getElementById('threed-overlay');
+    const frame    = document.getElementById('threed-frame');
+    const btn      = document.getElementById('threed-btn');
+    let loaded = false;
+
+    btn.addEventListener('click', () => {
+      if (overlay.style.display === 'none') {
+        if (!loaded) { frame.src = 'scene.html'; loaded = true; }
+        overlay.style.display = 'block';
+        btn.textContent = '← Map View';
+      } else {
+        overlay.style.display = 'none';
+        btn.textContent = '✦ 3D View';
+      }
+    });
+
+    // scene.html back button sends postMessage to close the overlay
+    window.addEventListener('message', e => {
+      if (e.data === 'close-3d') {
+        overlay.style.display = 'none';
+        btn.textContent = '✦ 3D View';
+      }
+    });
+  </script>
+
+  <script>
+    // ── Replace with your Mapbox token (free at mapbox.com) ──────────────────
+    mapboxgl.accessToken = '__MAPBOX_TOKEN__';
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/dark-v11',
+      center: [-78.899, 35.994],  // downtown Durham
+      zoom: 13.5,
+      pitch: 45,
+      bearing: -20,
+      antialias: true,
+    });
+
+    map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+
+    const status = document.getElementById('status');
+
+    async function loadGeoJSON(path) {
+      const resp = await fetch(path);
+      if (!resp.ok) throw new Error(`Failed to load ${path}: ${resp.status}`);
+      return resp.json();
+    }
+
+    let particlesVisible = true;
+
+    map.on('load', async () => {
+      // 3D buildings from Mapbox (OSM)
+      const labelLayer = map.getStyle().layers.find(
+        l => l.type === 'symbol' && l.layout?.['text-field']
+      );
+
+      map.addLayer({
+        id: 'buildings-3d',
+        type: 'fill-extrusion',
+        source: 'composite',
+        'source-layer': 'building',
+        filter: ['==', 'extrude', 'true'],
+        paint: {
+          'fill-extrusion-color': '#1a2030',
+          'fill-extrusion-height': ['get', 'height'],
+          'fill-extrusion-base': ['get', 'min_height'],
+          'fill-extrusion-opacity': 0.8,
+        },
+      }, labelLayer?.id);
+
+      status.textContent = 'Loading creek data…';
+
+      try {
+        const [streams, culverts, neighborhoods, dtMask, dtBoundary, riverSmooth, delta] = await Promise.all([
+          loadGeoJSON('data/ellerbe_streams.geojson'),
+          loadGeoJSON('data/culverts_creek.geojson'),
+          loadGeoJSON('data/neighborhoods.geojson'),
+          loadGeoJSON('data/downtown_mask.geojson'),
+          loadGeoJSON('data/downtown.geojson'),
+          loadGeoJSON('data/river_smooth.geojson'),
+          loadGeoJSON('data/imagined_delta.geojson'),
+        ]);
+
+        // ── Neighborhoods (drawn first, underneath waterways) ──────────────
+        map.addSource('neighborhoods', { type: 'geojson', data: neighborhoods });
+        map.addLayer({
+          id: 'neighborhoods-outline',
+          type: 'line',
+          source: 'neighborhoods',
+          paint: { 'line-color': '#2e4a2e', 'line-width': 0.8, 'line-opacity': 0.5 },
+        });
+        map.addLayer({
+          id: 'neighborhoods-label',
+          type: 'symbol',
+          source: 'neighborhoods',
+          layout: {
+            'text-field': ['get', 'name'],
+            'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+            'text-size': 10,
+            'text-letter-spacing': 0.06,
+            'text-transform': 'uppercase',
+          },
+          paint: {
+            'text-color': '#3a5a3a',
+            'text-halo-color': 'rgba(0,0,0,0.8)',
+            'text-halo-width': 1,
+          },
+        });
+
+        // ── Open channels ──────────────────────────────────────────────────
+        map.addSource('streams', { type: 'geojson', data: streams });
+        map.addLayer({
+          id: 'streams-glow',
+          type: 'line',
+          source: 'streams',
+          paint: { 'line-color': '#4fc3f7', 'line-width': 8, 'line-opacity': 0.15, 'line-blur': 4 },
+        });
+        map.addLayer({
+          id: 'streams-line',
+          type: 'line',
+          source: 'streams',
+          paint: { 'line-color': '#4fc3f7', 'line-width': 2.5, 'line-opacity': 0.85 },
+        });
+
+        // ── Underground culverts ───────────────────────────────────────────
+        map.addSource('culverts', { type: 'geojson', data: culverts });
+        map.addLayer({
+          id: 'culverts-other',
+          type: 'line',
+          source: 'culverts',
+          filter: ['!=', ['get', 'OPERATIONALAREA'], 'Ellerbe Creek'],
+          paint: { 'line-color': '#3a3a3a', 'line-width': 1, 'line-opacity': 0.6 },
+        });
+        map.addLayer({
+          id: 'culverts-line',
+          type: 'line',
+          source: 'culverts',
+          filter: ['==', ['get', 'OPERATIONALAREA'], 'Ellerbe Creek'],
+          paint: {
+            'line-color': ['interpolate', ['linear'], ['coalesce', ['get', 'DIAMETER'], 36],
+              36, '#ff7043', 60, '#ffb300', 96, '#fff176'],
+            'line-width': ['interpolate', ['linear'], ['coalesce', ['get', 'DIAMETER'], 36],
+              36, 1.5, 60, 3, 120, 6],
+            'line-opacity': 0.9,
+          },
+        });
+        map.addLayer({
+          id: 'culverts-glow',
+          type: 'line',
+          source: 'culverts',
+          filter: ['==', ['get', 'OPERATIONALAREA'], 'Ellerbe Creek'],
+          paint: {
+            'line-color': '#ffb300',
+            'line-width': ['interpolate', ['linear'], ['coalesce', ['get', 'DIAMETER'], 36],
+              36, 6, 120, 16],
+            'line-opacity': 0.1,
+            'line-blur': 6,
+          },
+        });
+
+        // ── Imagined Delta — hypothesis waterway network ──────────────────
+        // Confidence encoded in line-width and color; dashed = lower confidence.
+        // Hover shows reasoning, confidence, min_width, and reference projects.
+        map.addSource('delta', { type: 'geojson', data: delta });
+
+        // Glow for high-confidence segments
+        map.addLayer({
+          id: 'delta-glow',
+          type: 'line',
+          source: 'delta',
+          layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
+          paint: {
+            'line-color': '#34d399',
+            'line-width': ['interpolate',['linear'],['get','confidence'], 0.8,12, 0.95,28],
+            'line-opacity': 0.08,
+            'line-blur': 10,
+          },
+        });
+
+        // Body: color + width + dash encode gap tier
+        //   micro_gap  = bright emerald, solid, wide  (near-certain culverts)
+        //   short_gap  = medium green, solid           (plausible buried crossing)
+        //   medium_gap/long_bridge = pale mint, dashed (speculative, flow-aligned)
+        map.addLayer({
+          id: 'delta-line',
+          type: 'line',
+          source: 'delta',
+          layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
+          paint: {
+            'line-color': [
+              'match', ['get', 'gap_type'],
+              'micro_gap',   '#34d399',
+              'short_gap',   '#6ee7b7',
+              '#a7f3d0',   // medium_gap / long_bridge
+            ],
+            'line-width': [
+              'match', ['get', 'gap_type'],
+              'micro_gap', 4,
+              'short_gap', 3,
+              2,
+            ],
+            'line-opacity': 0.88,
+          },
+        });
+        // Dashed overlay for speculative tiers only
+        map.addLayer({
+          id: 'delta-dash',
+          type: 'line',
+          source: 'delta',
+          filter: ['in', ['get', 'gap_type'], ['literal', ['medium_gap', 'long_bridge']]],
+          layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
+          paint: {
+            'line-color': '#080c14',
+            'line-width': 1,
+            'line-opacity': 0.5,
+            'line-dasharray': [4, 5],
+          },
+        });
+
+        // Popup for delta segments
+        const deltaPopup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false });
+        map.on('mouseenter', 'delta-line', e => {
+          map.getCanvas().style.cursor = 'pointer';
+          const p = e.features[0].properties;
+          const conf = Math.round(p.confidence * 100);
+          const typeLabel = { micro_gap:'near-certain culvert', short_gap:'plausible buried section', medium_gap:'flow-aligned hypothesis', long_bridge:'speculative bridge' }[p.gap_type] || p.gap_type;
+          deltaPopup.setLngLat(e.lngLat).setHTML(`
+            <strong style="color:#34d399">${p.gap_type?.replace('_',' ')} · ${Math.round(p.gap_distance_m)}m</strong><br/>
+            <span style="color:#6ee7b7;font-size:11px">⬤ ${conf}% · ${typeLabel}</span><br/>
+            <span style="color:#888;font-size:10px;max-width:220px;display:block;line-height:1.4;margin-top:3px">${(p.reasoning||'').slice(0,180)}</span>
+          `).addTo(map);
+        });
+        map.on('mouseleave', 'delta-line', () => {
+          map.getCanvas().style.cursor = '';
+          deltaPopup.remove();
+        });
+
+        // ── Downtown slab — fill-extrusion on the MASK polygon ────────────
+        // Extruding the inverted polygon (outside area) creates a plateau with
+        // downtown as a recessed surface — perfect Catan tile with zero corner
+        // artifacts since Mapbox handles polygon-hole extrusion natively.
+        map.addSource('dt-mask', { type: 'geojson', data: dtMask });
+        map.addLayer({
+          id: 'dt-slab-extrusion',
+          type: 'fill-extrusion',
+          source: 'dt-mask',
+          paint: {
+            'fill-extrusion-color': '#0d1520',
+            'fill-extrusion-height': 120,
+            'fill-extrusion-base': 0,
+            'fill-extrusion-opacity': 0.97,
+          },
+        });
+
+        // Flat fill to cover any ground-level gaps outside DT
+        map.addLayer({
+          id: 'dt-mask-fill',
+          type: 'fill',
+          source: 'dt-mask',
+          paint: { 'fill-color': '#0a0a0f', 'fill-opacity': 1 },
+        });
+
+        // Crisp top-edge line along the DT boundary
+        map.addSource('dt-boundary', { type: 'geojson', data: dtBoundary });
+        map.addLayer({
+          id: 'dt-boundary-line',
+          type: 'line',
+          source: 'dt-boundary',
+          paint: { 'line-color': '#2a3f5f', 'line-width': 2, 'line-opacity': 0.9 },
+        });
+
+        // ── River mode — Chaikin-smoothed, endpoint-merged continuous chains ─
+        // river_smooth.geojson: round line-cap + line-join eliminate choppy gaps.
+        map.addSource('river', { type: 'geojson', data: riverSmooth });
+
+        map.addLayer({
+          id: 'river-glow',
+          type: 'line',
+          source: 'river',
+          layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': '#0ea5e9', 'line-width': 40, 'line-opacity': 0.07, 'line-blur': 14 },
+        });
+        map.addLayer({
+          id: 'river-base',
+          type: 'line',
+          source: 'river',
+          layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': '#0a5f8c', 'line-width': 14, 'line-opacity': 0.82 },
+        });
+        // Shimmer: animated dasharray offset flows downstream (driven by rAF below)
+        map.addLayer({
+          id: 'river-shimmer',
+          type: 'line',
+          source: 'river',
+          layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': '#7dd3fc', 'line-width': 3, 'line-opacity': 0.55, 'line-dasharray': [0, 6, 3] },
+        });
+
+        // ── Canvas particle system: fish + birds ──────────────────────────
+        const overlay = document.createElement('canvas');
+        overlay.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4';
+        document.getElementById('map').appendChild(overlay);
+
+        function resizeOverlay() {
+          overlay.width  = overlay.offsetWidth;
+          overlay.height = overlay.offsetHeight;
+        }
+        resizeOverlay();
+        window.addEventListener('resize', resizeOverlay);
+        const octx = overlay.getContext('2d');
+
+        // Collect creek paths for fish to follow
+        const creekPaths = [];
+        for (const feat of streams.features) {
+          const coords = feat.geometry.type === 'LineString'
+            ? feat.geometry.coordinates
+            : feat.geometry.coordinates.flat();
+          if (coords.length >= 2) creekPaths.push(coords);
+        }
+
+        function lerpPath(path, t) {
+          const n = path.length - 1;
+          const i = Math.min(Math.floor(t * n), n - 1);
+          const f = t * n - i;
+          const a = path[i], b = path[i + 1] || a;
+          return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+        }
+
+        // Fish: small dots that swim along creek lines
+        const fish = Array.from({ length: 35 }, () => {
+          const path = creekPaths[Math.floor(Math.random() * creekPaths.length)];
+          return {
+            path,
+            t:      Math.random(),
+            speed:  0.00008 + Math.random() * 0.00012,
+            r:      2 + Math.random() * 2.5,
+            wobble: Math.random() * Math.PI * 2,
+            alpha:  0.5 + Math.random() * 0.4,
+          };
+        });
+
+        // Birds: loose drifting dots in the upper screen area
+        const birds = Array.from({ length: 14 }, () => ({
+          x:     Math.random() * window.innerWidth,
+          y:     Math.random() * window.innerHeight * 0.35,
+          vx:    (Math.random() - 0.5) * 0.25,
+          vy:    (Math.random() - 0.5) * 0.08,
+          r:     1.5 + Math.random() * 2,
+          phase: Math.random() * Math.PI * 2,
+          alpha: 0.3 + Math.random() * 0.35,
+        }));
+
+        let lastTs = 0;
+
+        function animateParticles(ts) {
+          const dt = Math.min(ts - lastTs, 50); // cap dt so tab-switch doesn't jump
+          lastTs = ts;
+          octx.clearRect(0, 0, overlay.width, overlay.height);
+
+          if (!particlesVisible) { requestAnimationFrame(animateParticles); return; }
+
+          // ── Birds ──
+          for (const b of birds) {
+            b.x += b.vx;
+            b.y += b.vy + Math.sin(ts * 0.0008 + b.phase) * 0.06;
+            if (b.x < -10) b.x = overlay.width + 10;
+            if (b.x > overlay.width + 10) b.x = -10;
+            b.y = Math.max(0, Math.min(overlay.height * 0.38, b.y));
+
+            octx.beginPath();
+            octx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+            octx.fillStyle = `rgba(190,210,240,${b.alpha})`;
+            octx.fill();
+          }
+
+          // ── Fish ──
+          for (const f of fish) {
+            f.t = (f.t + f.speed * dt) % 1;
+            const lonlat = lerpPath(f.path, f.t);
+            const px = map.project(lonlat);
+            const wx = Math.sin(ts * 0.004 + f.wobble) * 1.5;
+            const wy = Math.cos(ts * 0.004 + f.wobble) * 0.8;
+
+            octx.beginPath();
+            octx.arc(px.x + wx, px.y + wy, f.r, 0, Math.PI * 2);
+            octx.fillStyle = `rgba(79,195,247,${f.alpha})`;
+            octx.fill();
+          }
+
+          requestAnimationFrame(animateParticles);
+        }
+        requestAnimationFrame(animateParticles);
+
+        status.textContent = `${streams.features.length} Ellerbe Creek segments · ${culverts.features.length} buried culverts`;
+
+        // Hover popup
+        const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false });
+
+        function creekConfidence(p) {
+          if (p.OPERATIONALAREA !== 'Ellerbe Creek') return { label: 'Other watershed', color: '#666' };
+          const d = p.DIAMETER || 0;
+          const isBox = p.FORM === 'RECTANGULAR' || p.FORM === 'ARCH';
+          if (d >= 60 || isBox) return { label: `Creek trunk — ${d}" ${p.FORM || ''}`, color: '#fff176' };
+          return { label: `Likely creek tributary — ${d}"`, color: '#ff7043' };
+        }
+
+        ['streams-line', 'culverts-line', 'culverts-other'].forEach(layerId => {
+          map.on('mouseenter', layerId, e => {
+            map.getCanvas().style.cursor = 'pointer';
+            const p = e.features[0].properties;
+            const isCulvert = layerId !== 'streams-line';
+            if (isCulvert) {
+              const conf = creekConfidence(p);
+              popup.setLngLat(e.lngLat)
+                .setHTML(`
+                  <strong>${p.OPERATIONALAREA || '—'}</strong><br/>
+                  <span style="color:${conf.color};font-size:11px">⬤ ${conf.label}</span><br/>
+                  <span style="color:#888;font-size:11px">${p.MATERIAL || ''} · installed ${p.INSTALLDATE ? new Date(p.INSTALLDATE).getFullYear() : '?'}</span>
+                `)
+                .addTo(map);
+            } else {
+              const name = p.WTRNM || p.OPERATIONALAREA || '—';
+              popup.setLngLat(e.lngLat)
+                .setHTML(`<strong>${name}</strong><br/><span style="color:#4fc3f7;font-size:11px">⬤ Above-ground open channel</span>`)
+                .addTo(map);
+            }
+          });
+          map.on('mouseleave', layerId, () => {
+            map.getCanvas().style.cursor = '';
+            popup.remove();
+          });
+        });
+
+      } catch (err) {
+        status.textContent = `Error loading data: ${err.message}`;
+        console.error(err);
+        status.style.color = '#ff5555';
+      }
+    });
+
+    // Layer toggles
+    function wireToggle(checkboxId, layerIds) {
+      document.getElementById(checkboxId).addEventListener('change', e => {
+        const vis = e.target.checked ? 'visible' : 'none';
+        layerIds.forEach(id => {
+          if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
+        });
+      });
+    }
+
+    map.on('load', () => {
+      // Downtown mask: checked = mask ON (hide outside + show tile edge), unchecked = show all
+      document.getElementById('toggle-downtown').addEventListener('change', e => {
+        const vis = e.target.checked ? 'visible' : 'none';
+        ['dt-slab-extrusion', 'dt-mask-fill', 'dt-boundary-line'].forEach(id => {
+          if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
+        });
+        particlesVisible = e.target.checked;
+      });
+
+      // River mode: hide pipe layers, show river layers, animate shimmer
+      let riverActive = false;
+      let riverPhase = 0;
+
+      // Animate dasharray offset to create downstream flow illusion.
+      // Pattern [dash, gap, dash] cycles through offsets 0→9 so highlights
+      // appear to move continuously along each chain.
+      let dashStep = 0;
+      const DASH_STEPS = 9;   // total pattern length
+      const DASH_PATTERN = [[0,6,3],[1,6,3],[2,6,3],[3,6,3],[4,6,3],[5,6,3],[6,6,3],[7,6,3],[8,6,3]];
+      let lastDashUpdate = 0;
+
+      function animateRiver(ts) {
+        if (!riverActive) return;
+        // Update dasharray ~12fps (no need to redraw every frame)
+        if (ts - lastDashUpdate > 80) {
+          lastDashUpdate = ts;
+          dashStep = (dashStep + 1) % DASH_STEPS;
+          if (map.getLayer('river-shimmer')) {
+            map.setPaintProperty('river-shimmer', 'line-dasharray', DASH_PATTERN[dashStep]);
+          }
+        }
+        requestAnimationFrame(animateRiver);
+      }
+
+      document.getElementById('toggle-river').addEventListener('change', e => {
+        riverActive = e.target.checked;
+        const riverVis = riverActive ? 'visible' : 'none';
+        const pipesVis = riverActive ? 'none'    : 'visible';
+        ['river-glow', 'river-base', 'river-shimmer'].forEach(id => {
+          if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', riverVis);
+        });
+        ['streams-line','streams-glow','culverts-other','culverts-line','culverts-glow'].forEach(id => {
+          if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', pipesVis);
+        });
+        if (riverActive) requestAnimationFrame(animateRiver);
+      });
+
+      wireToggle('toggle-delta', ['delta-glow', 'delta-line', 'delta-dash']);
+      wireToggle('toggle-neighborhoods', ['neighborhoods-outline', 'neighborhoods-label']);
+      wireToggle('toggle-streams', ['streams-line', 'streams-glow']);
+      wireToggle('toggle-culverts', ['culverts-other', 'culverts-line', 'culverts-glow']);
+      wireToggle('toggle-buildings', ['buildings-3d']);
+    });
+  </script>
+</body>
+</html>

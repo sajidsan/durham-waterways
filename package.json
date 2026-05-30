@@ -1,0 +1,8 @@
+{
+  "name": "durham-waterways",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js && python3 -m http.server 3000 --directory dist"
+  }
+}
