@@ -228,20 +228,6 @@
 
   <div id="status">Loading data…</div>
 
-  <!-- 3D view overlay (iframe so Three.js has its own GL context) -->
-  <div id="threed-overlay" style="display:none;position:absolute;inset:0;z-index:20">
-    <iframe id="threed-frame" src="" style="width:100%;height:100%;border:none"
-            allow="accelerometer"></iframe>
-  </div>
-
-  <button id="threed-btn" style="
-    position:absolute;bottom:60px;right:16px;z-index:21;
-    background:rgba(10,15,25,0.9);border:1px solid #2a3f5f;
-    color:#aaa;padding:8px 14px;border-radius:8px;
-    font-size:12px;cursor:pointer;letter-spacing:0.05em;
-    backdrop-filter:blur(4px);
-  ">✦ 3D View</button>
-
   <script>
     // Collapsible controls on mobile
     const controlsToggle = document.getElementById('controls-toggle');
@@ -253,31 +239,6 @@
         chevron.classList.toggle('open', open);
       });
     }
-
-    // Toggle 3D overlay; load iframe lazily on first open
-    const overlay  = document.getElementById('threed-overlay');
-    const frame    = document.getElementById('threed-frame');
-    const btn      = document.getElementById('threed-btn');
-    let loaded = false;
-
-    btn.addEventListener('click', () => {
-      if (overlay.style.display === 'none') {
-        if (!loaded) { frame.src = 'scene.html'; loaded = true; }
-        overlay.style.display = 'block';
-        btn.textContent = '← Map View';
-      } else {
-        overlay.style.display = 'none';
-        btn.textContent = '✦ 3D View';
-      }
-    });
-
-    // scene.html back button sends postMessage to close the overlay
-    window.addEventListener('message', e => {
-      if (e.data === 'close-3d') {
-        overlay.style.display = 'none';
-        btn.textContent = '✦ 3D View';
-      }
-    });
   </script>
 
   <script>
