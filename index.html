@@ -305,8 +305,6 @@
       return resp.json();
     }
 
-    let particlesVisible = true;
-
     map.on('load', async () => {
       // 3D buildings from Mapbox (OSM)
       const labelLayer = map.getStyle().layers.find(
@@ -555,101 +553,6 @@
           paint: { 'line-color': '#7dd3fc', 'line-width': 3, 'line-opacity': 0.55, 'line-dasharray': [0, 6, 3] },
         });
 
-        // ── Canvas particle system: fish + birds ──────────────────────────
-        const overlay = document.createElement('canvas');
-        overlay.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4';
-        document.getElementById('map').appendChild(overlay);
-
-        function resizeOverlay() {
-          overlay.width  = overlay.offsetWidth;
-          overlay.height = overlay.offsetHeight;
-        }
-        resizeOverlay();
-        window.addEventListener('resize', resizeOverlay);
-        const octx = overlay.getContext('2d');
-
-        // Collect creek paths for fish to follow
-        const creekPaths = [];
-        for (const feat of streams.features) {
-          const coords = feat.geometry.type === 'LineString'
-            ? feat.geometry.coordinates
-            : feat.geometry.coordinates.flat();
-          if (coords.length >= 2) creekPaths.push(coords);
-        }
-
-        function lerpPath(path, t) {
-          const n = path.length - 1;
-          const i = Math.min(Math.floor(t * n), n - 1);
-          const f = t * n - i;
-          const a = path[i], b = path[i + 1] || a;
-          return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
-        }
-
-        // Fish: small dots that swim along creek lines
-        const fish = Array.from({ length: 35 }, () => {
-          const path = creekPaths[Math.floor(Math.random() * creekPaths.length)];
-          return {
-            path,
-            t:      Math.random(),
-            speed:  0.00008 + Math.random() * 0.00012,
-            r:      2 + Math.random() * 2.5,
-            wobble: Math.random() * Math.PI * 2,
-            alpha:  0.5 + Math.random() * 0.4,
-          };
-        });
-
-        // Birds: loose drifting dots in the upper screen area
-        const birds = Array.from({ length: 14 }, () => ({
-          x:     Math.random() * window.innerWidth,
-          y:     Math.random() * window.innerHeight * 0.35,
-          vx:    (Math.random() - 0.5) * 0.25,
-          vy:    (Math.random() - 0.5) * 0.08,
-          r:     1.5 + Math.random() * 2,
-          phase: Math.random() * Math.PI * 2,
-          alpha: 0.3 + Math.random() * 0.35,
-        }));
-
-        let lastTs = 0;
-
-        function animateParticles(ts) {
-          const dt = Math.min(ts - lastTs, 50); // cap dt so tab-switch doesn't jump
-          lastTs = ts;
-          octx.clearRect(0, 0, overlay.width, overlay.height);
-
-          if (!particlesVisible) { requestAnimationFrame(animateParticles); return; }
-
-          // ── Birds ──
-          for (const b of birds) {
-            b.x += b.vx;
-            b.y += b.vy + Math.sin(ts * 0.0008 + b.phase) * 0.06;
-            if (b.x < -10) b.x = overlay.width + 10;
-            if (b.x > overlay.width + 10) b.x = -10;
-            b.y = Math.max(0, Math.min(overlay.height * 0.38, b.y));
-
-            octx.beginPath();
-            octx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-            octx.fillStyle = `rgba(190,210,240,${b.alpha})`;
-            octx.fill();
-          }
-
-          // ── Fish ──
-          for (const f of fish) {
-            f.t = (f.t + f.speed * dt) % 1;
-            const lonlat = lerpPath(f.path, f.t);
-            const px = map.project(lonlat);
-            const wx = Math.sin(ts * 0.004 + f.wobble) * 1.5;
-            const wy = Math.cos(ts * 0.004 + f.wobble) * 0.8;
-
-            octx.beginPath();
-            octx.arc(px.x + wx, px.y + wy, f.r, 0, Math.PI * 2);
-            octx.fillStyle = `rgba(79,195,247,${f.alpha})`;
-            octx.fill();
-          }
-
-          requestAnimationFrame(animateParticles);
-        }
-        requestAnimationFrame(animateParticles);
-
         status.textContent = `${streams.features.length} Ellerbe Creek segments · ${culverts.features.length} buried culverts`;
 
         // Hover popup
@@ -714,7 +617,6 @@
         ['dt-slab-extrusion', 'dt-mask-fill', 'dt-boundary-line'].forEach(id => {
           if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', vis);
         });
-        particlesVisible = e.target.checked;
       });
 
       // River mode: hide pipe layers, show river layers, animate shimmer
