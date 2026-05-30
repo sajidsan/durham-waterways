@@ -33,6 +33,60 @@
       margin-bottom: 14px;
     }
 
+    #controls-toggle {
+      display: none;
+    }
+
+    #controls-chevron {
+      display: none;
+    }
+
+    @media (max-width: 600px) {
+      #controls {
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        min-width: unset;
+        padding: 12px 16px;
+      }
+
+      #controls h2 {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      #controls-toggle {
+        display: block;
+      }
+
+      #controls-chevron {
+        display: inline-block;
+        font-size: 10px;
+        color: #666;
+        transition: transform 0.2s;
+      }
+
+      #controls-body {
+        overflow: hidden;
+        max-height: 0;
+        transition: max-height 0.25s ease, margin-top 0.25s ease;
+        margin-top: 0;
+      }
+
+      #controls-body.open {
+        max-height: 600px;
+        margin-top: 14px;
+      }
+
+      #controls-chevron.open {
+        transform: rotate(180deg);
+      }
+    }
+
     .layer-toggle {
       display: flex;
       align-items: center;
@@ -93,8 +147,9 @@
   <div id="map"></div>
 
   <div id="controls">
-    <h2>Durham Waterways</h2>
+    <h2 id="controls-toggle">Durham Waterways <span id="controls-chevron">▾</span></h2>
 
+    <div id="controls-body">
     <label class="layer-toggle">
       <input type="checkbox" id="toggle-streams" checked />
       <div class="toggle-pill"></div>
@@ -168,6 +223,7 @@
         <div class="layer-sublabel">OpenStreetMap footprints</div>
       </div>
     </label>
+    </div><!-- /controls-body -->
   </div>
 
   <div id="status">Loading data…</div>
@@ -187,6 +243,17 @@
   ">✦ 3D View</button>
 
   <script>
+    // Collapsible controls on mobile
+    const controlsToggle = document.getElementById('controls-toggle');
+    const controlsBody   = document.getElementById('controls-body');
+    const chevron        = document.getElementById('controls-chevron');
+    if (controlsToggle) {
+      controlsToggle.addEventListener('click', () => {
+        const open = controlsBody.classList.toggle('open');
+        chevron.classList.toggle('open', open);
+      });
+    }
+
     // Toggle 3D overlay; load iframe lazily on first open
     const overlay  = document.getElementById('threed-overlay');
     const frame    = document.getElementById('threed-frame');
