@@ -167,6 +167,58 @@
     @media (max-width: 600px) {
       #home-link { top: 14px; right: 14px; }
     }
+
+    /* Dark navigation + compass controls */
+    .mapboxgl-ctrl-group {
+      background: rgba(10, 10, 20, 0.85) !important;
+      border: 1px solid rgba(255,255,255,0.1) !important;
+      backdrop-filter: blur(8px);
+      box-shadow: none !important;
+    }
+    .mapboxgl-ctrl-group button {
+      background-color: transparent !important;
+    }
+    .mapboxgl-ctrl-group button + button {
+      border-top: 1px solid rgba(255,255,255,0.08) !important;
+    }
+    .mapboxgl-ctrl-icon { filter: invert(1) brightness(0.7); }
+    .mapboxgl-ctrl-group button:hover .mapboxgl-ctrl-icon { filter: invert(1) brightness(1); }
+
+    /* Dark attribution (ⓘ) button */
+    .mapboxgl-ctrl-attrib {
+      background: rgba(10, 10, 20, 0.85) !important;
+      border: 1px solid rgba(255,255,255,0.1) !important;
+      backdrop-filter: blur(8px);
+    }
+    .mapboxgl-ctrl-attrib-button {
+      filter: invert(1) brightness(0.7);
+      background-color: transparent !important;
+    }
+    .mapboxgl-ctrl-attrib-inner { color: #555 !important; }
+    .mapboxgl-ctrl-attrib-inner a { color: #555 !important; }
+    .mapboxgl-ctrl-attrib.mapboxgl-compact-show {
+      padding: 4px 10px 4px 28px !important;
+    }
+
+    /* Dark popup */
+    .mapboxgl-popup { z-index: 20; }
+    .mapboxgl-popup-content {
+      background: rgba(10, 10, 20, 0.92) !important;
+      color: #e0e0e0 !important;
+      border: 1px solid rgba(255,255,255,0.12) !important;
+      border-radius: 8px !important;
+      padding: 10px 14px !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6) !important;
+      backdrop-filter: blur(8px);
+    }
+    .mapboxgl-popup-tip {
+      border-top-color: rgba(10, 10, 20, 0.92) !important;
+      border-bottom-color: rgba(10, 10, 20, 0.92) !important;
+    }
+
+    /* Status attribution links */
+    #status a { color: #555; text-decoration: none; }
+    #status a:hover { color: #888; }
   </style>
 </head>
 <body>
@@ -286,6 +338,7 @@
       pitch: 45,
       bearing: -20,
       antialias: true,
+      attributionControl: false,
     });
 
     map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
@@ -546,7 +599,7 @@
           paint: { 'line-color': '#7dd3fc', 'line-width': 3, 'line-opacity': 0.55, 'line-dasharray': [0, 6, 3] },
         });
 
-        status.textContent = `${streams.features.length} Ellerbe Creek segments · ${culverts.features.length} buried culverts`;
+        status.innerHTML = `${streams.features.length} Ellerbe Creek segments · ${culverts.features.length} buried culverts · <a href="https://www.mapbox.com/about/maps/" target="_blank" rel="noopener">© Mapbox</a> · <a href="https://www.openstreetmap.org/about/" target="_blank" rel="noopener">© OpenStreetMap</a> · <a href="https://www.mapbox.com/map-feedback/" target="_blank" rel="noopener">Go to original map</a>`;
 
         // Hover popup
         const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false });
